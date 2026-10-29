@@ -116,10 +116,14 @@ export default function CalendarScreen() {
               return (
                 <Pressable key={key} style={styles.cell} onPress={() => select(key)}>
                   <View
+                    // Always set background and border, only swapping colours: on Android,
+                    // giving a view a background after mount can drop its border radius.
                     style={[
                       styles.dayCircle,
-                      isSelected && { backgroundColor: theme.inverse },
-                      !isSelected && isToday && { borderWidth: 1.5, borderColor: theme.text },
+                      {
+                        backgroundColor: isSelected ? theme.inverse : 'transparent',
+                        borderColor: !isSelected && isToday ? theme.text : 'transparent',
+                      },
                     ]}
                   >
                     <Text
@@ -254,6 +258,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
   },
