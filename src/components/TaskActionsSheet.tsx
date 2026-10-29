@@ -18,7 +18,7 @@ export function TaskActionsSheet({ task, onClose, onMove, onRemove }: Props) {
   const theme = useTheme();
 
   return (
-    <Sheet visible={task !== null} onClose={onClose} inline>
+    <Sheet visible={task !== null} onClose={onClose}>
       {task && (
         <>
           <Text style={[styles.task, { color: theme.text }]} numberOfLines={2}>

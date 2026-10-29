@@ -1,70 +1,48 @@
 import type { ReactNode } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
-import { useKeyboardHeight } from '../useKeyboardHeight';
+import { useBackHandler, useKeyboardInset } from '../useKeyboardInset';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  /**
-   * Render as an overlay inside the current screen instead of a new Modal.
-   * Use it when the caller is already inside a Modal: Android lays out a Modal
-   * opened from another Modal short of the bottom edge.
-   */
-  inline?: boolean;
   children: ReactNode;
 };
 
-/** Bottom sheet. Appears and disappears instantly, with no transition. */
-export function Sheet({ visible, onClose, inline = false, children }: Props) {
+/**
+ * Bottom sheet drawn as an overlay over the current screen (not a Modal, so it
+ * shares the app window and can follow the keyboard animation). Appears and
+ * disappears instantly; place it last so it covers everything else.
+ */
+export function Sheet({ visible, onClose, children }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
+  const bottomPadding = Math.max(insets.bottom, 16) + 8;
+  // With the keyboard up, keep a 16pt gap above it instead of the safe-area padding.
+  const keyboardStyle = useKeyboardInset(bottomPadding - 16);
+  useBackHandler(visible, onClose);
 
-  const content = (
-    <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[StyleSheet.absoluteFill, styles.root, keyboardStyle]}>
       <Pressable
         style={[StyleSheet.absoluteFill, { backgroundColor: theme.backdrop }]}
         onPress={onClose}
       />
-      <View
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: theme.surface,
-            paddingBottom: keyboardHeight ? 16 : Math.max(insets.bottom, 16) + 8,
-          },
-        ]}
-      >
+      <View style={[styles.sheet, { backgroundColor: theme.surface, paddingBottom: bottomPadding }]}>
         <View style={[styles.handle, { backgroundColor: theme.border }]} />
         {children}
       </View>
-    </View>
-  );
-
-  if (inline) {
-    return visible ? <View style={StyleSheet.absoluteFill}>{content}</View> : null;
-  }
-
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={onClose}
-    >
-      {content}
-    </Modal>
+    </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1,
     justifyContent: 'flex-end',
   },
   sheet: {

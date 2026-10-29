@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import {
-  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from '../haptics';
 import { quadrantById, type QuadrantId } from '../quadrants';
 import { useTheme, withAlpha } from '../theme';
-import { useKeyboardHeight } from '../useKeyboardHeight';
+import { useBackHandler, useKeyboardInset } from '../useKeyboardInset';
 import type { Task, TaskActions } from '../useTasks';
 import { TaskActionsSheet } from './TaskActionsSheet';
 import { TaskRow } from './TaskRow';
@@ -30,13 +29,22 @@ type Props = {
 export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const keyboardHeight = useKeyboardHeight();
   const [draft, setDraft] = useState('');
   const [menuTask, setMenuTask] = useState<Task | null>(null);
   const [showDone, setShowDone] = useState(true);
 
-  // The Modal is hidden when quadrantId is null, so the fallback is never seen.
-  const quadrant = quadrantById(quadrantId ?? 'do');
+  const composerPadding = Math.max(insets.bottom, 12) + 4;
+  // With the keyboard up, keep a 12pt gap above it instead of the safe-area padding.
+  const keyboardStyle = useKeyboardInset(composerPadding - 12);
+
+  const close = () => {
+    setDraft('');
+    onClose();
+  };
+  useBackHandler(quadrantId !== null, close);
+
+  if (!quadrantId) return null;
+  const quadrant = quadrantById(quadrantId);
 
   const mine = tasks.filter((t) => t.quadrant === quadrant.id);
   const open = mine.filter((t) => !t.done);
@@ -50,14 +58,6 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
     setDraft('');
   };
 
-  const close = () => {
-    setDraft('');
-    onClose();
-  };
-
-  // The task menu is drawn inside this Modal, so back closes it first.
-  const handleBack = () => (menuTask ? setMenuTask(null) : close());
-
   const renderRow = (t: Task) => (
     <TaskRow
       key={t.id}
@@ -69,17 +69,12 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
   );
 
   return (
-    <Modal
-      visible={quadrantId !== null}
-      animationType="none"
-      statusBarTranslucent
-      navigationBarTranslucent
-      onRequestClose={handleBack}
-    >
-      <View
+    <>
+      <Animated.View
         style={[
-          styles.screen,
-          { backgroundColor: theme.background, paddingTop: insets.top + 8, paddingBottom: keyboardHeight },
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.background, paddingTop: insets.top + 8 },
+          keyboardStyle,
         ]}
       >
         <View style={styles.topBar}>
@@ -171,7 +166,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
             {
               backgroundColor: theme.background,
               borderTopColor: theme.border,
-              paddingBottom: keyboardHeight ? 12 : Math.max(insets.bottom, 12) + 4,
+              paddingBottom: composerPadding,
             },
           ]}
         >
@@ -195,22 +190,19 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
             <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
           </Pressable>
         </View>
+      </Animated.View>
 
-        <TaskActionsSheet
-          task={menuTask}
-          onClose={() => setMenuTask(null)}
-          onMove={actions.move}
-          onRemove={actions.remove}
-        />
-      </View>
-    </Modal>
+      <TaskActionsSheet
+        task={menuTask}
+        onClose={() => setMenuTask(null)}
+        onMove={actions.move}
+        onRemove={actions.remove}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-  },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',

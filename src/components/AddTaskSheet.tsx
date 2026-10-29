@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, type TextInputInstance } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 
 import { haptic } from '../haptics';
 import { quadrantById, type QuadrantId } from '../quadrants';
@@ -27,14 +27,6 @@ function AddTaskForm({ initialQuadrant, onClose, onAdd }: Omit<Props, 'visible'>
   const theme = useTheme();
   const [title, setTitle] = useState('');
   const [quadrant, setQuadrant] = useState(initialQuadrant);
-  const inputRef = useRef<TextInputInstance>(null);
-
-  // autoFocus inside an Android Modal focuses the field without raising the keyboard;
-  // focusing once the sheet has appeared does.
-  useEffect(() => {
-    const timer = setTimeout(() => inputRef.current?.focus(), 250);
-    return () => clearTimeout(timer);
-  }, []);
 
   const color = quadrantById(quadrant).color;
   const canSubmit = title.trim().length > 0;
@@ -50,7 +42,7 @@ function AddTaskForm({ initialQuadrant, onClose, onAdd }: Omit<Props, 'visible'>
     <>
       <Text style={[styles.heading, { color: theme.text }]}>新任务</Text>
       <TextInput
-        ref={inputRef}
+        autoFocus
         value={title}
         onChangeText={setTitle}
         onSubmitEditing={submit}
