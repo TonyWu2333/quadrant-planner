@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 
+import type { DateKey } from './dates';
 import type { QuadrantId } from './quadrants';
 
 export type Task = {
@@ -9,6 +10,8 @@ export type Task = {
   quadrant: QuadrantId;
   done: boolean;
   createdAt: number;
+  /** Day the task is scheduled for; unscheduled tasks only live in the matrix. */
+  date?: DateKey;
 };
 
 const STORAGE_KEY = 'quadrant-planner/tasks';
@@ -31,20 +34,24 @@ export function useTasks() {
     if (loaded) AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
   }, [tasks, loaded]);
 
-  const add = useCallback((title: string, quadrant: QuadrantId) => {
+  const add = useCallback((title: string, quadrant: QuadrantId, date?: DateKey) => {
     const now = Date.now();
-    setTasks((prev) => [...prev, { id: `${now}`, title, quadrant, done: false, createdAt: now }]);
+    setTasks((prev) => [...prev, { id: `${now}`, title, quadrant, done: false, createdAt: now, date }]);
   }, []);
 
-  const toggle = useCallback(
-    (id: string) => setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, done: !t.done } : t))),
+  const update = useCallback(
+    (id: string, patch: (t: Task) => Partial<Task>) =>
+      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch(t) } : t))),
     [],
   );
 
-  const move = useCallback(
-    (id: string, quadrant: QuadrantId) =>
-      setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, quadrant } : t))),
-    [],
+  const toggle = useCallback((id: string) => update(id, (t) => ({ done: !t.done })), [update]);
+
+  const move = useCallback((id: string, quadrant: QuadrantId) => update(id, () => ({ quadrant })), [update]);
+
+  const setDate = useCallback(
+    (id: string, date: DateKey | undefined) => update(id, () => ({ date })),
+    [update],
   );
 
   const remove = useCallback((id: string) => setTasks((prev) => prev.filter((t) => t.id !== id)), []);
@@ -54,7 +61,7 @@ export function useTasks() {
     [],
   );
 
-  return { tasks, loaded, add, toggle, move, remove, clearDone };
+  return { tasks, loaded, actions: { add, toggle, move, setDate, remove, clearDone } };
 }
 
-export type TaskActions = Omit<ReturnType<typeof useTasks>, 'tasks' | 'loaded'>;
+export type TaskActions = ReturnType<typeof useTasks>['actions'];

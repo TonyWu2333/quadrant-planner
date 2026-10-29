@@ -1,32 +1,31 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput } from 'react-native';
 
+import { useAppState, type AddRequest } from '../AppState';
 import { haptic } from '../haptics';
-import { quadrantById, type QuadrantId } from '../quadrants';
+import { quadrantById } from '../quadrants';
 import { useTheme } from '../theme';
+import { DateChips } from './DateChips';
 import { QuadrantPicker } from './QuadrantPicker';
 import { Sheet } from './Sheet';
 
-type Props = {
-  visible: boolean;
-  initialQuadrant: QuadrantId;
-  onClose: () => void;
-  onAdd: (title: string, quadrant: QuadrantId) => void;
-};
-
-export function AddTaskSheet({ visible, ...formProps }: Props) {
+/** The "new task" sheet, opened from either tab via `openAdd`. */
+export function AddTaskSheet() {
+  const { addRequest, closeAdd } = useAppState();
   return (
-    <Sheet visible={visible} onClose={formProps.onClose}>
-      {/* Modal only renders children while visible, so the form starts fresh each time. */}
-      <AddTaskForm {...formProps} />
+    <Sheet visible={addRequest !== null} onClose={closeAdd}>
+      {/* Sheet only renders children while visible, so the form starts fresh each time. */}
+      {addRequest && <AddTaskForm request={addRequest} />}
     </Sheet>
   );
 }
 
-function AddTaskForm({ initialQuadrant, onClose, onAdd }: Omit<Props, 'visible'>) {
+function AddTaskForm({ request }: { request: AddRequest }) {
   const theme = useTheme();
+  const { actions, closeAdd } = useAppState();
   const [title, setTitle] = useState('');
-  const [quadrant, setQuadrant] = useState(initialQuadrant);
+  const [quadrant, setQuadrant] = useState(request.quadrant);
+  const [date, setDate] = useState(request.date);
 
   const color = quadrantById(quadrant).color;
   const canSubmit = title.trim().length > 0;
@@ -34,8 +33,8 @@ function AddTaskForm({ initialQuadrant, onClose, onAdd }: Omit<Props, 'visible'>
   const submit = () => {
     if (!canSubmit) return;
     haptic.success();
-    onAdd(title.trim(), quadrant);
-    onClose();
+    actions.add(title.trim(), quadrant, date);
+    closeAdd();
   };
 
   return (
@@ -53,6 +52,8 @@ function AddTaskForm({ initialQuadrant, onClose, onAdd }: Omit<Props, 'visible'>
         selectionColor={color}
         style={[styles.input, { color: theme.text, backgroundColor: theme.surfaceMuted }]}
       />
+      <Text style={[styles.label, { color: theme.textSecondary }]}>日期</Text>
+      <DateChips value={date} onChange={setDate} color={color} />
       <Text style={[styles.label, { color: theme.textSecondary }]}>放进哪个象限</Text>
       <QuadrantPicker value={quadrant} onChange={setQuadrant} />
       <Pressable

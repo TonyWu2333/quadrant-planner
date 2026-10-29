@@ -1,21 +1,20 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { useAppState } from '../AppState';
 import { haptic } from '../haptics';
-import { QUADRANTS, type QuadrantId } from '../quadrants';
+import { QUADRANTS, quadrantById } from '../quadrants';
 import { useTheme, withAlpha } from '../theme';
-import type { Task } from '../useTasks';
+import { DateChips } from './DateChips';
 import { Sheet } from './Sheet';
 
-type Props = {
-  task: Task | null;
-  onClose: () => void;
-  onMove: (id: string, quadrant: QuadrantId) => void;
-  onRemove: (id: string) => void;
-};
-
-export function TaskActionsSheet({ task, onClose, onMove, onRemove }: Props) {
+/** The "⋯" menu for a task: reschedule, move quadrant, delete. */
+export function TaskActionsSheet() {
   const theme = useTheme();
+  const { tasks, actions, menuTaskId, setMenuTaskId } = useAppState();
+  // Read the live task so date changes show up while the menu stays open.
+  const task = tasks.find((t) => t.id === menuTaskId) ?? null;
+  const onClose = () => setMenuTaskId(null);
 
   return (
     <Sheet visible={task !== null} onClose={onClose}>
@@ -24,6 +23,13 @@ export function TaskActionsSheet({ task, onClose, onMove, onRemove }: Props) {
           <Text style={[styles.task, { color: theme.text }]} numberOfLines={2}>
             {task.title}
           </Text>
+
+          <Text style={[styles.label, { color: theme.textSecondary }]}>日期</Text>
+          <DateChips
+            value={task.date}
+            onChange={(date) => actions.setDate(task.id, date)}
+            color={quadrantById(task.quadrant).color}
+          />
 
           <Text style={[styles.label, { color: theme.textSecondary }]}>移动到</Text>
           <View style={[styles.group, { backgroundColor: theme.surfaceMuted }]}>
@@ -35,7 +41,7 @@ export function TaskActionsSheet({ task, onClose, onMove, onRemove }: Props) {
                   disabled={current}
                   onPress={() => {
                     haptic.select();
-                    onMove(task.id, q.id);
+                    actions.move(task.id, q.id);
                     onClose();
                   }}
                   style={({ pressed }) => [
@@ -60,7 +66,7 @@ export function TaskActionsSheet({ task, onClose, onMove, onRemove }: Props) {
           <Pressable
             onPress={() => {
               haptic.warn();
-              onRemove(task.id);
+              actions.remove(task.id);
               onClose();
             }}
             style={({ pressed }) => [

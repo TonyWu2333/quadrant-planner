@@ -11,26 +11,24 @@ import {
 import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useAppState } from '../AppState';
 import { haptic } from '../haptics';
-import { quadrantById, type QuadrantId } from '../quadrants';
+import { quadrantById } from '../quadrants';
 import { useTheme, withAlpha } from '../theme';
 import { useBackHandler, useKeyboardInset } from '../useKeyboardInset';
-import type { Task, TaskActions } from '../useTasks';
-import { TaskActionsSheet } from './TaskActionsSheet';
+import type { Task } from '../useTasks';
 import { TaskRow } from './TaskRow';
 
-type Props = {
-  quadrantId: QuadrantId | null;
-  tasks: Task[];
-  actions: TaskActions;
-  onClose: () => void;
-};
+/** Scheduled tasks first, earliest day first; unscheduled ones keep creation order. */
+const byDate = (a: Task, b: Task) =>
+  (a.date ?? '9999') < (b.date ?? '9999') ? -1 : (a.date ?? '9999') > (b.date ?? '9999') ? 1 : 0;
 
-export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
+/** Full-screen list of one quadrant, drawn as an overlay above the tabs. */
+export function QuadrantScreen() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const { tasks, actions, openQuadrant: quadrantId, setOpenQuadrant, setMenuTaskId } = useAppState();
   const [draft, setDraft] = useState('');
-  const [menuTask, setMenuTask] = useState<Task | null>(null);
   const [showDone, setShowDone] = useState(true);
 
   const composerPadding = Math.max(insets.bottom, 12) + 4;
@@ -39,7 +37,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
 
   const close = () => {
     setDraft('');
-    onClose();
+    setOpenQuadrant(null);
   };
   useBackHandler(quadrantId !== null, close);
 
@@ -47,7 +45,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
   const quadrant = quadrantById(quadrantId);
 
   const mine = tasks.filter((t) => t.quadrant === quadrant.id);
-  const open = mine.filter((t) => !t.done);
+  const open = mine.filter((t) => !t.done).sort(byDate);
   const done = mine.filter((t) => t.done);
 
   const submit = () => {
@@ -62,143 +60,134 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
     <TaskRow
       key={t.id}
       task={t}
-      color={quadrant.color}
+      meta="date"
       onToggle={() => actions.toggle(t.id)}
-      onMore={() => setMenuTask(t)}
+      onMore={() => setMenuTaskId(t.id)}
     />
   );
 
   return (
-    <>
-      <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { backgroundColor: theme.background, paddingTop: insets.top + 8 },
-          keyboardStyle,
-        ]}
-      >
-        <View style={styles.topBar}>
+    <Animated.View
+      style={[
+        StyleSheet.absoluteFill,
+        { backgroundColor: theme.background, paddingTop: insets.top + 8 },
+        keyboardStyle,
+      ]}
+    >
+      <View style={styles.topBar}>
+        <Pressable
+          onPress={close}
+          hitSlop={8}
+          style={[styles.close, { backgroundColor: theme.surfaceMuted }]}
+          accessibilityLabel="返回"
+        >
+          <Ionicons name="chevron-down" size={22} color={theme.text} />
+        </Pressable>
+        {done.length > 0 && (
           <Pressable
-            onPress={close}
+            onPress={() => {
+              haptic.warn();
+              actions.clearDone(quadrant.id);
+            }}
             hitSlop={8}
-            style={[styles.close, { backgroundColor: theme.surfaceMuted }]}
-            accessibilityLabel="返回"
           >
-            <Ionicons name="chevron-down" size={22} color={theme.text} />
+            <Text style={[styles.clear, { color: theme.textSecondary }]}>清除已完成</Text>
           </Pressable>
-          {done.length > 0 && (
-            <Pressable
-              onPress={() => {
-                haptic.warn();
-                actions.clearDone(quadrant.id);
-              }}
-              hitSlop={8}
-            >
-              <Text style={[styles.clear, { color: theme.textSecondary }]}>清除已完成</Text>
-            </Pressable>
-          )}
+        )}
+      </View>
+
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.hero}>
+          <View style={[styles.heroIcon, { backgroundColor: quadrant.color }]}>
+            <Ionicons name={quadrant.icon} size={22} color="#FFFFFF" />
+          </View>
+          <Text style={[styles.title, { color: theme.text }]}>{quadrant.title}</Text>
+          <Text style={[styles.action, { color: quadrant.color }]}>{quadrant.action}</Text>
+          <Text style={[styles.description, { color: theme.textSecondary }]}>
+            {quadrant.description}
+          </Text>
         </View>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.content}
-          keyboardShouldPersistTaps="handled"
-        >
-          <View style={styles.hero}>
-            <View style={[styles.heroIcon, { backgroundColor: quadrant.color }]}>
-              <Ionicons name={quadrant.icon} size={22} color="#FFFFFF" />
+        {mine.length === 0 ? (
+          <View style={styles.empty}>
+            <View style={[styles.emptyIcon, { backgroundColor: withAlpha(quadrant.color, theme.tintAlpha) }]}>
+              <Ionicons name={quadrant.icon} size={30} color={quadrant.color} />
             </View>
-            <Text style={[styles.title, { color: theme.text }]}>{quadrant.title}</Text>
-            <Text style={[styles.action, { color: quadrant.color }]}>{quadrant.action}</Text>
-            <Text style={[styles.description, { color: theme.textSecondary }]}>
-              {quadrant.description}
+            <Text style={[styles.emptyTitle, { color: theme.text }]}>这里还没有任务</Text>
+            <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
+              在下方输入，直接添加到「{quadrant.title}」
             </Text>
           </View>
-
-          {mine.length === 0 ? (
-            <View style={styles.empty}>
-              <View style={[styles.emptyIcon, { backgroundColor: withAlpha(quadrant.color, theme.tintAlpha) }]}>
-                <Ionicons name={quadrant.icon} size={30} color={quadrant.color} />
-              </View>
-              <Text style={[styles.emptyTitle, { color: theme.text }]}>这里还没有任务</Text>
-              <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
-                在下方输入，直接添加到「{quadrant.title}」
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text style={[styles.section, { color: theme.textSecondary }]}>
-                待办 · {open.length}
-              </Text>
-              <View style={styles.list}>
-                {open.map(renderRow)}
-                {open.length === 0 && (
-                  <Text style={[styles.allDone, { color: theme.textTertiary }]}>都做完了，干得漂亮</Text>
-                )}
-              </View>
-
-              {done.length > 0 && (
-                <Animated.View layout={LinearTransition}>
-                  <Pressable
-                    onPress={() => setShowDone((v) => !v)}
-                    style={styles.sectionToggle}
-                    hitSlop={6}
-                  >
-                    <Text style={[styles.section, styles.sectionInline, { color: theme.textSecondary }]}>
-                      已完成 · {done.length}
-                    </Text>
-                    <Ionicons
-                      name={showDone ? 'chevron-up' : 'chevron-down'}
-                      size={14}
-                      color={theme.textSecondary}
-                    />
-                  </Pressable>
-                  {showDone && <View style={styles.list}>{done.map(renderRow)}</View>}
-                </Animated.View>
+        ) : (
+          <>
+            <Text style={[styles.section, { color: theme.textSecondary }]}>
+              待办 · {open.length}
+            </Text>
+            <View style={styles.list}>
+              {open.map(renderRow)}
+              {open.length === 0 && (
+                <Text style={[styles.allDone, { color: theme.textTertiary }]}>都做完了，干得漂亮</Text>
               )}
-            </>
-          )}
-        </ScrollView>
+            </View>
 
-        <View
-          style={[
-            styles.composer,
-            {
-              backgroundColor: theme.background,
-              borderTopColor: theme.border,
-              paddingBottom: composerPadding,
-            },
-          ]}
+            {done.length > 0 && (
+              <Animated.View layout={LinearTransition}>
+                <Pressable
+                  onPress={() => setShowDone((v) => !v)}
+                  style={styles.sectionToggle}
+                  hitSlop={6}
+                >
+                  <Text style={[styles.section, styles.sectionInline, { color: theme.textSecondary }]}>
+                    已完成 · {done.length}
+                  </Text>
+                  <Ionicons
+                    name={showDone ? 'chevron-up' : 'chevron-down'}
+                    size={14}
+                    color={theme.textSecondary}
+                  />
+                </Pressable>
+                {showDone && <View style={styles.list}>{done.map(renderRow)}</View>}
+              </Animated.View>
+            )}
+          </>
+        )}
+      </ScrollView>
+
+      <View
+        style={[
+          styles.composer,
+          {
+            backgroundColor: theme.background,
+            borderTopColor: theme.border,
+            paddingBottom: composerPadding,
+          },
+        ]}
+      >
+        <TextInput
+          value={draft}
+          onChangeText={setDraft}
+          onSubmitEditing={submit}
+          submitBehavior="submit"
+          returnKeyType="done"
+          placeholder={`添加到「${quadrant.title}」`}
+          placeholderTextColor={theme.textTertiary}
+          selectionColor={quadrant.color}
+          style={[styles.input, { color: theme.text, backgroundColor: theme.surface }]}
+        />
+        <Pressable
+          onPress={submit}
+          disabled={!draft.trim()}
+          style={[styles.send, { backgroundColor: quadrant.color, opacity: draft.trim() ? 1 : 0.35 }]}
+          accessibilityLabel="添加"
         >
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            onSubmitEditing={submit}
-            submitBehavior="submit"
-            returnKeyType="done"
-            placeholder={`添加到「${quadrant.title}」`}
-            placeholderTextColor={theme.textTertiary}
-            selectionColor={quadrant.color}
-            style={[styles.input, { color: theme.text, backgroundColor: theme.surface }]}
-          />
-          <Pressable
-            onPress={submit}
-            disabled={!draft.trim()}
-            style={[styles.send, { backgroundColor: quadrant.color, opacity: draft.trim() ? 1 : 0.35 }]}
-            accessibilityLabel="添加"
-          >
-            <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
-          </Pressable>
-        </View>
-      </Animated.View>
-
-      <TaskActionsSheet
-        task={menuTask}
-        onClose={() => setMenuTask(null)}
-        onMove={actions.move}
-        onRemove={actions.remove}
-      />
-    </>
+          <Ionicons name="arrow-up" size={22} color="#FFFFFF" />
+        </Pressable>
+      </View>
+    </Animated.View>
   );
 }
 
