@@ -1,20 +1,20 @@
 import { useEffect, useRef } from 'react';
 import { BackHandler } from 'react-native';
-import { useAnimatedKeyboard, useAnimatedStyle } from 'react-native-reanimated';
+import { useReanimatedKeyboardAnimation } from 'react-native-keyboard-controller';
+import { useAnimatedStyle } from 'react-native-reanimated';
 
 /**
  * Bottom padding that follows the on-screen keyboard frame by frame, so content
  * pinned to the bottom rises together with the keyboard instead of jumping.
  * `overlap` is space the content already reserves at the bottom (e.g. the
- * safe-area inset) that the keyboard may cover.
+ * safe-area inset) that the keyboard may cover. Needs `KeyboardProvider` at the
+ * root, which also stops Android from resizing the window underneath.
  */
 export function useKeyboardInset(overlap = 0) {
-  const keyboard = useAnimatedKeyboard({
-    isStatusBarTranslucentAndroid: true,
-    isNavigationBarTranslucentAndroid: true,
-  });
+  // `height` is negative while the keyboard is open (it's meant for translateY).
+  const { height } = useReanimatedKeyboardAnimation();
   return useAnimatedStyle(() => ({
-    paddingBottom: Math.max(0, keyboard.height.value - overlap),
+    paddingBottom: Math.max(0, -height.value - overlap),
   }));
 }
 

@@ -23,7 +23,9 @@ export default function CalendarScreen() {
   });
 
   const today = todayKey();
+  // Explicit 7-cell rows: percentage widths can round to a 6-per-row wrap on Android.
   const days = monthGrid(month);
+  const weeks = Array.from({ length: 6 }, (_, i) => days.slice(i * 7, i * 7 + 7));
 
   const byDay = useMemo(() => {
     const map = new Map<DateKey, Task[]>();
@@ -98,53 +100,55 @@ export default function CalendarScreen() {
             </Text>
           ))}
         </View>
-        <View style={styles.grid}>
-          {days.map((d) => {
-            const key = toKey(d);
-            const inMonth = d.getMonth() === month.getMonth();
-            const isSelected = key === selected;
-            const isToday = key === today;
-            const list = byDay.get(key) ?? [];
-            const openColors = QUADRANTS.filter((q) => list.some((t) => !t.done && t.quadrant === q.id)).map(
-              (q) => q.color,
-            );
-            const dots = openColors.length ? openColors : list.length ? [theme.textTertiary] : [];
+        {weeks.map((week, w) => (
+          <View key={w} style={styles.weekRow}>
+            {week.map((d) => {
+              const key = toKey(d);
+              const inMonth = d.getMonth() === month.getMonth();
+              const isSelected = key === selected;
+              const isToday = key === today;
+              const list = byDay.get(key) ?? [];
+              const openColors = QUADRANTS.filter((q) => list.some((t) => !t.done && t.quadrant === q.id)).map(
+                (q) => q.color,
+              );
+              const dots = openColors.length ? openColors : list.length ? [theme.textTertiary] : [];
 
-            return (
-              <Pressable key={key} style={styles.cell} onPress={() => select(key)}>
-                <View
-                  style={[
-                    styles.dayCircle,
-                    isSelected && { backgroundColor: theme.inverse },
-                    !isSelected && isToday && { borderWidth: 1.5, borderColor: theme.text },
-                  ]}
-                >
-                  <Text
+              return (
+                <Pressable key={key} style={styles.cell} onPress={() => select(key)}>
+                  <View
                     style={[
-                      styles.dayText,
-                      {
-                        color: isSelected
-                          ? theme.onInverse
-                          : inMonth
-                            ? theme.text
-                            : theme.textTertiary,
-                        fontWeight: isSelected || isToday ? '700' : '500',
-                        opacity: inMonth || isSelected ? 1 : 0.5,
-                      },
+                      styles.dayCircle,
+                      isSelected && { backgroundColor: theme.inverse },
+                      !isSelected && isToday && { borderWidth: 1.5, borderColor: theme.text },
                     ]}
                   >
-                    {d.getDate()}
-                  </Text>
-                </View>
-                <View style={styles.dots}>
-                  {dots.slice(0, MAX_DOTS).map((c, i) => (
-                    <View key={i} style={[styles.dot, { backgroundColor: c, opacity: inMonth ? 1 : 0.5 }]} />
-                  ))}
-                </View>
-              </Pressable>
-            );
-          })}
-        </View>
+                    <Text
+                      style={[
+                        styles.dayText,
+                        {
+                          color: isSelected
+                            ? theme.onInverse
+                            : inMonth
+                              ? theme.text
+                              : theme.textTertiary,
+                          fontWeight: isSelected || isToday ? '700' : '500',
+                          opacity: inMonth || isSelected ? 1 : 0.5,
+                        },
+                      ]}
+                    >
+                      {d.getDate()}
+                    </Text>
+                  </View>
+                  <View style={styles.dots}>
+                    {dots.slice(0, MAX_DOTS).map((c, i) => (
+                      <View key={i} style={[styles.dot, { backgroundColor: c, opacity: inMonth ? 1 : 0.5 }]} />
+                    ))}
+                  </View>
+                </Pressable>
+              );
+            })}
+          </View>
+        ))}
       </View>
 
       <View style={styles.dayHeader}>
@@ -238,12 +242,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  grid: {
+  weekRow: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
   },
   cell: {
-    width: `${100 / 7}%`,
+    flex: 1,
     alignItems: 'center',
     paddingVertical: 3,
   },

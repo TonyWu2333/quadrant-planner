@@ -1,6 +1,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { TabList, TabSlot, TabTrigger, Tabs } from 'expo-router/ui';
 import { StyleSheet } from 'react-native';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { AppStateProvider } from '../AppState';
@@ -13,9 +14,11 @@ import { useTheme } from '../theme';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <AppStateProvider>
-        <Shell />
-      </AppStateProvider>
+      <KeyboardProvider statusBarTranslucent navigationBarTranslucent preserveEdgeToEdge>
+        <AppStateProvider>
+          <Shell />
+        </AppStateProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
