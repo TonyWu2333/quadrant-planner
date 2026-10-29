@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeIn, LinearTransition } from 'react-native-reanimated';
+import Animated, { LinearTransition } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { haptic } from '../haptics';
@@ -35,10 +35,8 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
   const [menuTask, setMenuTask] = useState<Task | null>(null);
   const [showDone, setShowDone] = useState(true);
 
-  // Keep rendering the last quadrant while the modal slides away.
-  const [shownId, setShownId] = useState<QuadrantId>('do');
-  if (quadrantId && quadrantId !== shownId) setShownId(quadrantId);
-  const quadrant = quadrantById(quadrantId ?? shownId);
+  // The Modal is hidden when quadrantId is null, so the fallback is never seen.
+  const quadrant = quadrantById(quadrantId ?? 'do');
 
   const mine = tasks.filter((t) => t.quadrant === quadrant.id);
   const open = mine.filter((t) => !t.done);
@@ -73,7 +71,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
   return (
     <Modal
       visible={quadrantId !== null}
-      animationType="slide"
+      animationType="none"
       statusBarTranslucent
       navigationBarTranslucent
       onRequestClose={handleBack}
@@ -123,7 +121,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
           </View>
 
           {mine.length === 0 ? (
-            <Animated.View entering={FadeIn} style={styles.empty}>
+            <View style={styles.empty}>
               <View style={[styles.emptyIcon, { backgroundColor: withAlpha(quadrant.color, theme.tintAlpha) }]}>
                 <Ionicons name={quadrant.icon} size={30} color={quadrant.color} />
               </View>
@@ -131,7 +129,7 @@ export function QuadrantScreen({ quadrantId, tasks, actions, onClose }: Props) {
               <Text style={[styles.emptyText, { color: theme.textSecondary }]}>
                 在下方输入，直接添加到「{quadrant.title}」
               </Text>
-            </Animated.View>
+            </View>
           ) : (
             <>
               <Text style={[styles.section, { color: theme.textSecondary }]}>

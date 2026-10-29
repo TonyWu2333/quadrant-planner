@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '../theme';
@@ -15,28 +14,22 @@ type Props = {
    * opened from another Modal short of the bottom edge.
    */
   inline?: boolean;
-  /** Slide/fade in. Off shows the sheet instantly. */
-  animated?: boolean;
   children: ReactNode;
 };
 
-export function Sheet({ visible, onClose, inline = false, animated = true, children }: Props) {
+/** Bottom sheet. Appears and disappears instantly, with no transition. */
+export function Sheet({ visible, onClose, inline = false, children }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
 
   const content = (
     <View style={[styles.root, { paddingBottom: keyboardHeight }]}>
-      <Animated.View
-        entering={inline ? FadeIn.duration(180) : undefined}
-        exiting={inline ? FadeOut.duration(160) : undefined}
+      <Pressable
         style={[StyleSheet.absoluteFill, { backgroundColor: theme.backdrop }]}
-      >
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
-      </Animated.View>
-      <Animated.View
-        entering={animated ? SlideInDown.springify().damping(22).stiffness(220) : undefined}
-        exiting={inline ? SlideOutDown.duration(200) : undefined}
+        onPress={onClose}
+      />
+      <View
         style={[
           styles.sheet,
           {
@@ -47,7 +40,7 @@ export function Sheet({ visible, onClose, inline = false, animated = true, child
       >
         <View style={[styles.handle, { backgroundColor: theme.border }]} />
         {children}
-      </Animated.View>
+      </View>
     </View>
   );
 
@@ -59,7 +52,7 @@ export function Sheet({ visible, onClose, inline = false, animated = true, child
     <Modal
       visible={visible}
       transparent
-      animationType={animated ? 'fade' : 'none'}
+      animationType="none"
       statusBarTranslucent
       navigationBarTranslucent
       onRequestClose={onClose}

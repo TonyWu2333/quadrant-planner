@@ -16,7 +16,7 @@ type Props = {
 
 export function AddTaskSheet({ visible, ...formProps }: Props) {
   return (
-    <Sheet visible={visible} onClose={formProps.onClose} animated={false}>
+    <Sheet visible={visible} onClose={formProps.onClose}>
       {/* Modal only renders children while visible, so the form starts fresh each time. */}
       <AddTaskForm {...formProps} />
     </Sheet>
