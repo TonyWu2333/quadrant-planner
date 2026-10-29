@@ -15,10 +15,12 @@ type Props = {
    * opened from another Modal short of the bottom edge.
    */
   inline?: boolean;
+  /** Slide/fade in. Off shows the sheet instantly. */
+  animated?: boolean;
   children: ReactNode;
 };
 
-export function Sheet({ visible, onClose, inline = false, children }: Props) {
+export function Sheet({ visible, onClose, inline = false, animated = true, children }: Props) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -33,7 +35,7 @@ export function Sheet({ visible, onClose, inline = false, children }: Props) {
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
       </Animated.View>
       <Animated.View
-        entering={SlideInDown.springify().damping(22).stiffness(220)}
+        entering={animated ? SlideInDown.springify().damping(22).stiffness(220) : undefined}
         exiting={inline ? SlideOutDown.duration(200) : undefined}
         style={[
           styles.sheet,
@@ -57,7 +59,7 @@ export function Sheet({ visible, onClose, inline = false, children }: Props) {
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType={animated ? 'fade' : 'none'}
       statusBarTranslucent
       navigationBarTranslucent
       onRequestClose={onClose}
